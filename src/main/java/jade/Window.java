@@ -1,4 +1,4 @@
-package Jade;
+package jade;
 
 
 import org.lwjgl.Version;
@@ -9,6 +9,7 @@ import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
 
+import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryStack.stackPush;
@@ -21,12 +22,20 @@ public class Window {
 
     private long glfwWindow;
 
+    private float r, g, b, a;
+
     private static Window window = null;
+    private boolean fadeToBlack = false;
 
     private Window() {
-        this.width = 300;
-        this.height = 300;
+        this.width = 1920;
+        this.height = 1080;
         this.title = "Mario";
+        r = 1;
+        b = 1;
+        g = 1;
+        a = 1;
+
     }
 
     public static Window get() {
@@ -44,6 +53,14 @@ public class Window {
 
         init();
         loop();
+
+        // Free the memory
+        glfwFreeCallbacks(glfwWindow);
+        glfwDestroyWindow(glfwWindow);
+
+        // Terminate GLFW and free the error callback
+        glfwTerminate();
+        glfwSetErrorCallback(null).free();
     }
 
     public void init() {
@@ -66,12 +83,18 @@ public class Window {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
 
-
         // Create the window
         glfwWindow = glfwCreateWindow(this.width, this.height, this.title, NULL, NULL);
         if (glfwWindow == NULL) {
             throw new RuntimeException("Failed to create the GLFW window");
         }
+
+        // Setup a mouse callback. It will be called every time a key is pressed, repeated or released.
+        glfwSetCursorPosCallback(glfwWindow, MouseListener::mousePosCallback);
+        glfwSetMouseButtonCallback(glfwWindow, MouseListener::mouseButtonCallback);
+        glfwSetScrollCallback(glfwWindow, MouseListener::mouseScrollCallback);
+        glfwSetKeyCallback(glfwWindow, KeyListener::keyCallback);
+
 
         // Get the thread stack and push a new frame
         try (MemoryStack stack = stackPush()) {
@@ -114,8 +137,19 @@ public class Window {
             glfwPollEvents();
 
 
-            glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+            glClearColor(r, g, b, a);
             glClear(GL_COLOR_BUFFER_BIT);
+
+            if (fadeToBlack) {
+                r = Math.max(r - 0.01f, 0);
+                g = Math.max(g - 0.01f, 0);
+                b = Math.max(b - 0.01f, 0);
+            }
+
+            if (KeyListener.get().isKeyPressed(GLFW_KEY_SPACE)) {
+
+                fadeToBlack = true;
+            }
 
             glfwSwapBuffers(glfwWindow);
         }
